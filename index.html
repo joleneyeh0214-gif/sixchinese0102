@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>靜思書院：小院日常 - 朱子治家格言互動遊戲</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --paper-bg: #f5eedc;
+            --ink-color: #2c241b;
+            --tzuchi-green: #2d5a3f;
+            --accent-red: #9e2a2b;
+            --muted-gold: #c2a878;
+        }
+
+        body {
+            font-family: 'Noto Serif TC', serif;
+            background-color: #1a1a1a;
+            background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h40v40H0V0zm20 20h20v20H20V20zM0 20h20v20H0V20z' fill='%23222' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E");
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 1rem;
+            color: var(--ink-color);
+        }
+
+        /* 宣紙濾鏡與邊框設計 */
+        #game-container {
+            background-color: var(--paper-bg);
+            background-image: 
+                radial-gradient(circle, transparent 20%, #e6dabd 150%),
+                url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+            width: 100%;
+            max-width: 900px;
+            min-height: 650px;
+            border: 1px solid var(--muted-gold);
+            border-radius: 8px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 水墨筆觸裝飾 (角落) */
+        .ink-splash {
+            position: absolute;
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .ink-top-left { top: -50px; left: -50px; width: 300px; transform: rotate(-15deg); }
+        .ink-bottom-right { bottom: -50px; right: -50px; width: 350px; transform: rotate(165deg); }
+
+        /* 內部雙線框 */
+        #game-container::before {
+            content: '';
+            position: absolute;
+            top: 15px; bottom: 15px; left: 15px; right: 15px;
+            border: 2px solid var(--tzuchi-green);
+            opacity: 0.3;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* 印章樣式 */
+        .seal {
+            color: var(--accent-red);
+            border: 2px solid var(--accent-red);
+            padding: 2px 8px;
+            font-weight: 900;
+            border-radius: 4px;
+            display: inline-block;
+            transform: rotate(-3deg);
+            opacity: 0.85;
+            font-size: 0.8em;
+            letter-spacing: 2px;
+        }
+
+        /* 水墨風按鈕 */
+        .choice-btn {
+            background: transparent;
+            border: 1px solid var(--ink-color);
+            color: var(--ink-color);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            z-index: 10;
+        }
+        
+        .choice-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: var(--ink-color);
+            transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: -1;
+        }
+
+        .choice-btn:hover {
+            color: var(--paper-bg);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-color: transparent;
+        }
+
+        .choice-btn:hover::before {
+            left: 0;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 班級行動卡專屬樣式 */
+        .action-card {
+            background: rgba(255, 255, 255, 0.4);
+            border: 2px dashed var(--tzuchi-green);
+            padding: 2rem;
+            border-radius: 12px;
+            position: relative;
+            backdrop-filter: blur(2px);
+        }
+        .action-card::after {
+            content: '慈濟校園・靜思語實踐';
+            position: absolute;
+            bottom: 10px; right: 15px;
+            font-size: 0.8rem;
+            color: var(--tzuchi-green);
+            opacity: 0.6;
+            letter-spacing: 1px;
+        }
+
+        /* 情境圖文卡 */
+        .scene-visual {
+            width: min(100%, 620px);
+            min-height: 154px;
+            margin: 0 auto 1.75rem;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            color: #fffaf0;
+            background:
+                linear-gradient(120deg, rgba(21, 54, 38, .93), rgba(45, 90, 63, .82)),
+                radial-gradient(circle at 85% 20%, rgba(255,255,255,.25) 0 3px, transparent 4px);
+            border: 1px solid var(--muted-gold);
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(44, 36, 27, .13);
+            position: relative;
+            overflow: hidden;
+        }
+        .scene-visual::after {
+            content: '';
+            position: absolute;
+            right: -45px;
+            bottom: -70px;
+            width: 190px;
+            height: 190px;
+            border: 1px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+        }
+        .scene-emoji {
+            font-size: 4.7rem;
+            line-height: 1;
+            filter: drop-shadow(0 5px 5px rgba(0,0,0,.18));
+            position: relative;
+            z-index: 1;
+        }
+        .scene-caption {
+            position: relative;
+            z-index: 1;
+            text-align: left;
+        }
+        .scene-caption h2 { font-size: 1.2rem; font-weight: 900; letter-spacing: .14em; }
+        .scene-caption p { margin-top: .4rem; font-size: .95rem; line-height: 1.75; color: rgba(255,250,240,.88); }
+
+        @media (max-width: 640px) {
+            .scene-visual { min-height: 128px; padding: 1rem; gap: .9rem; }
+            .scene-emoji { font-size: 3.6rem; }
+            .scene-caption h2 { font-size: 1rem; }
+            .scene-caption p { font-size: .82rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container" class="p-6 sm:p-12">
+        
+        <!-- 背景水墨裝飾 (SVG 簡化版) -->
+        <svg class="ink-splash ink-top-left" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <path fill="currentColor" d="M42.7,-73.4C55.9,-67.8,67.6,-57.4,75.2,-44.5C82.8,-31.6,86.2,-15.8,85.6,-0.3C85,15.1,80.4,30.3,71.7,42.4C63.1,54.5,50.4,63.6,36.5,70.5C22.6,77.4,7.5,82.1,-7.1,80.8C-21.7,79.5,-35.8,72.2,-49,63.1C-62.2,54,-74.5,43,-80.7,29.1C-86.9,15.2,-87, -1.6,-81.4,-16.1C-75.8,-30.6,-64.5,-42.8,-51.7,-49.2C-38.9,-55.6,-24.6,-56.2,-10.8,-51.2C3,-46.2,16.8,-35.6,29.5,-41.2C42.2,-46.8,53.8,-58.6,42.7,-73.4Z" transform="translate(100 100)" />
+        </svg>
+        <svg class="ink-splash ink-bottom-right" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <path fill="currentColor" d="M37.4,-61.8C47.8,-54.5,55,-41.9,62,-28.9C69.1,-15.8,76.1,-2.3,73.5,9.6C70.9,21.5,58.7,31.8,47.7,42.4C36.7,53,26.9,63.9,14.3,68.9C1.7,73.9,-13.7,73,-27,67.3C-40.3,61.6,-51.5,51,-60.7,39C-69.9,27,-77.1,13.5,-76.3,0.4C-75.5,-12.7,-66.7,-25.4,-57.1,-36.5C-47.5,-47.6,-37.1,-57.1,-25.4,-63C-13.7,-68.9,-0.7,-71.2,12.7,-69.1C26.1,-67,39.5,-60.5,37.4,-61.8Z" transform="translate(100 100)" />
+        </svg>
+
+        <!-- HEADER: 標題與屬性面板 -->
+        <header class="flex flex-col sm:flex-row justify-between items-center z-20 mb-8 border-b border-[var(--muted-gold)] pb-4 relative">
+            <h1 class="text-2xl sm:text-3xl font-black tracking-widest flex items-center gap-3 text-[var(--tzuchi-green)]">
+                <span class="seal">靜思</span>
+                小院日常
+            </h1>
+            <div id="stats-panel" class="flex gap-4 mt-4 sm:mt-0 text-sm sm:text-base font-bold hidden transition-opacity duration-500">
+                <div class="px-3 py-1 rounded bg-white/30 border border-[#c2a878]">勤奮：<span id="stat-diligence" class="text-emerald-800">0</span></div>
+                <div class="px-3 py-1 rounded bg-white/30 border border-[#c2a878]">修養：<span id="stat-character" class="text-blue-800">0</span></div>
+                <div class="px-3 py-1 rounded bg-white/30 border border-[#c2a878]">感恩：<span id="stat-gratitude" class="text-amber-800">0</span></div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-grow flex flex-col items-center justify-center z-20 w-full">
+            
+            <div id="scene-image" class="scene-visual transition-transform duration-500 hover:scale-[1.02]">
+                <!-- Scene illustration and caption go here -->
+            </div>
+            
+            <div id="story-text" class="text-lg sm:text-xl leading-loose mb-10 min-h-[140px] text-justify w-full max-w-2xl font-medium fade-in text-gray-800">
+                <!-- Text goes here -->
+            </div>
+
+            <!-- Choices Container -->
+            <div id="choices-container" class="flex flex-col gap-4 w-full max-w-xl">
+                <!-- Buttons go here -->
+            </div>
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="mt-8 text-center text-xs opacity-60 z-20 font-bold tracking-widest">
+            結合康軒六上課文 × 慈濟校園情境設計
+        </footer>
+    </div>
+
+    <script>
+        // Game State
+        let stats = {
+            diligence: 0,
+            character: 0,
+            gratitude: 0
+        };
+        let finalQuote = "";
+
+        // Web Audio API for simple soft interactions
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        function playTone(freq, type, duration, vol=0.05) {
+            if (!audioCtx) audioCtx = new AudioContext();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+
+        // Sound presets
+        function playClickSound() { playTone(300, 'sine', 0.2); }
+        function playGoodSound() { 
+            playTone(523.25, 'sine', 0.3); // C5
+            setTimeout(() => playTone(659.25, 'sine', 0.4), 100); // E5
+            setTimeout(() => playTone(783.99, 'sine', 0.6), 200); // G5
+        }
+        function playBadSound() { playTone(200, 'triangle', 0.5, 0.08); }
+
+        const storyData = {
+            intro: {
+                image: "🎋",
+                visualTitle: "靜思書院・晨光初啟",
+                visualText: "從一段校園日常，練習把古人的智慧化為今天的行動。",
+                text: "微風拂過慈濟校園的樟樹林，發出沙沙的聲響。歡迎來到『靜思書院』。<br><br>夫子微笑著說：「古人朱柏廬留下了《朱子治家格言》，字字句句都是生活中的大智慧。接下來，請你化身為書院學子，在熟悉的校園情境中度過一天。你的每一個選擇，都將印證你的『勤奮』、『修養』與『感恩』之心。」",
+                choices: [
+                    { text: "翻開書卷，開始今日的修行", target: "scene1", sound: playGoodSound }
+                ]
+            },
+            scene1: {
+                image: "📚",
+                visualTitle: "靜思閱讀書軒",
+                visualText: "書頁與時計提醒我們：從容，來自及早準備。",
+                text: "【情境一：圖書館的午後】<br>期中評量下週就要到了，同學們都在『靜思閱讀書軒』溫習。你平時有點貪玩，現在面臨選擇。<br><br><span class='text-[var(--accent-red)] font-bold'>格言云：「宜未雨而綢繆，毋臨渴而掘井。」</span><br>意思是：要在下雨前先修繕房屋，不要等口渴了才想到要挖井。",
+                choices: [
+                    { text: "現在立刻擬定複習計畫，按部就班地讀書。", effects: { diligence: 10 }, target: "scene1_good", quote: "宜未雨而綢繆，毋臨渴而掘井。" },
+                    { text: "還有一個禮拜呢！先去打球，考前一天再熬夜背就好。", effects: { diligence: -10 }, target: "scene1_bad" }
+                ],
+                showStats: true
+            },
+            scene1_good: {
+                image: "✍️",
+                visualTitle: "提早耕耘的收穫",
+                visualText: "一筆一畫整理出的計畫，讓考場上的自己更安心。",
+                text: "你提早做好了準備。到了考試當天，你從容不迫地作答，發揮了最好的實力。<br><br><span class='text-emerald-700'>（及早準備，勤奮 +10）</span>",
+                choices: [{ text: "前往美術教室", target: "scene2" }]
+            },
+            scene1_bad: {
+                image: "🥱",
+                visualTitle: "倉促苦讀的夜晚",
+                visualText: "疲憊的眼神提醒我們，準備不該留到最後一刻。",
+                text: "考前一天你熬夜苦讀，到了考場卻精神不濟，頭腦一片空白，懊悔不已。<br><br><span class='text-red-700'>（臨陣磨槍，勤奮 -10）</span>",
+                choices: [{ text: "帶著倦意前往美術教室", target: "scene2" }]
+            },
+
+            scene2: {
+                image: "🎨",
+                visualTitle: "美術教室的色彩",
+                visualText: "器物的價值，不在昂貴，而在被好好使用。",
+                text: "【情境二：美術課的用具】<br>今天的美術課需要帶水彩用具。你的舊水彩盒有點斑駁，但還能用。這時你看到同學帶了國外進口、超級昂貴的限量版畫具，覺得很羨慕。<br><br><span class='text-[var(--accent-red)] font-bold'>格言云：「器具質而潔，瓦缶勝金玉。」</span><br>意思是：日常用品只要堅實乾淨，即使是陶瓦做的，也勝過金玉般華而不實。",
+                choices: [
+                    { text: "把自己的舊水彩盒擦拭乾淨，樸實好用就好。", effects: { character: 10 }, target: "scene2_good", quote: "器具質而潔，瓦缶勝金玉。" },
+                    { text: "覺得很丟臉，回家吵著父母一定要買最貴的款式來炫耀。", effects: { character: -10 }, target: "scene2_bad" }
+                ]
+            },
+            scene2_good: {
+                image: "✨",
+                visualTitle: "樸實畫出好風景",
+                visualText: "擦亮舊畫具，也擦亮了珍惜物品的一份心意。",
+                text: "你用乾淨的舊畫具，畫出了一幅充滿感情的美麗風景。老師稱讚你不追求物質虛榮，懂得愛惜物品。<br><br><span class='text-blue-700'>（不慕虛榮，修養 +10）</span>",
+                choices: [{ text: "午餐時間到了", target: "scene3" }]
+            },
+            scene2_bad: {
+                image: "😔",
+                visualTitle: "比較帶來的失落",
+                visualText: "真正踏實的快樂，從來不需要靠炫耀證明。",
+                text: "你為了一個畫具和父母大吵一架，到了學校雖然有了新畫具，但心裡卻不覺得踏實。<br><br><span class='text-red-700'>（盲目攀比，修養 -10）</span>",
+                choices: [{ text: "悶悶不樂地去吃午餐", target: "scene3" }]
+            },
+
+            scene3: {
+                image: "🥦",
+                visualTitle: "餐桌上的感恩課",
+                visualText: "一碗飯、一盤菜，都凝聚了土地與人的辛勞。",
+                text: "【情境三：感恩的午餐】<br>學校推動健康蔬食。今天的午餐有地瓜葉和糙米飯，沒有你平常愛吃的炸物。<br><br><span class='text-[var(--accent-red)] font-bold'>格言云：「飲食約而精，園蔬勝珍饈。」</span><br>意思是：飲食應當節約而精心調理，園子裡種的蔬菜，勝過山珍海味。",
+                choices: [
+                    { text: "感恩農夫的辛勞與大地的賜予，將營養的蔬食吃得乾乾淨淨。", effects: { gratitude: 10, character: 5 }, target: "scene3_good", quote: "飲食約而精，園蔬勝珍饈。" },
+                    { text: "嫌棄菜色不好，偷偷倒進廚餘桶，打算下午去福利社買零食。", effects: { gratitude: -10 }, target: "scene3_bad" }
+                ]
+            },
+            scene3_good: {
+                image: "🙏",
+                visualTitle: "把每一口吃得珍惜",
+                visualText: "清爽的蔬食，是對自然、農人與身體的感謝。",
+                text: "清淡的蔬食讓你下午精神百倍。落實『吃在地、吃當季、不浪費』，正是對大自然最好的回報。<br><br><span class='text-amber-700'>（惜福愛物，感恩 +10，修養 +5）</span>",
+                choices: [{ text: "下午的合作學習時間", target: "scene4" }]
+            },
+            scene3_bad: {
+                image: "🗑️",
+                visualTitle: "被忽略的食物",
+                visualText: "浪費的不只是餐點，也辜負了許多人的努力。",
+                text: "你浪費了食物，下午上課時肚子餓得咕嚕叫，根本無法專心聽講。<br><br><span class='text-red-700'>（浪費物力，感恩 -10）</span>",
+                choices: [{ text: "餓著肚子參加下午的課", target: "scene4" }]
+            },
+
+            scene4: {
+                image: "🤝",
+                visualTitle: "同學之間的一頁筆記",
+                visualText: "一句體諒的話，能讓需要幫助的人感到被接住。",
+                text: "【情境四：借出的筆記】<br>前幾天，同學生病請假，你主動借他筆記。今天他回來了，卻忘記把筆記帶來還你，一直向你道歉。<br><br><span class='text-[var(--accent-red)] font-bold'>格言云：「施惠勿念，受恩莫忘。」</span><br>意思是：給予他人恩惠不要掛在心上；接受他人恩惠絕對不能忘記。",
+                choices: [
+                    { text: "溫和地說：「沒關係，明天記得帶就好。」並關心他的身體。", effects: { character: 10, gratitude: 5 }, target: "scene4_good", quote: "施惠勿念，受恩莫忘。" },
+                    { text: "大聲斥責他：「早知道就不借你了！」讓他下不了台。", effects: { character: -10 }, target: "scene4_bad" }
+                ]
+            },
+            scene4_good: {
+                image: "😊",
+                visualTitle: "寬厚留住友情",
+                visualText: "願意理解彼此的小失誤，友情便多了一點溫度。",
+                text: "同學非常感激你的體諒。幫助別人本就是快樂的事，不斤斤計較，讓你贏得了珍貴的友誼。<br><br><span class='text-blue-700'>（寬厚待人，修養 +10，感恩 +5）</span>",
+                choices: [{ text: "放學前的體育競賽", target: "scene5" }]
+            },
+            scene4_bad: {
+                image: "😠",
+                visualTitle: "話語造成的距離",
+                visualText: "再有道理的責備，也需要用不傷人的方式說出口。",
+                text: "同學羞愧地低下了頭。雖然他忘了帶是他的錯，但你咄咄逼人的態度，也讓兩人關係降到冰點。<br><br><span class='text-red-700'>（計較恩惠，修養 -10）</span>",
+                choices: [{ text: "氣呼呼地去參加體育課", target: "scene5" }]
+            },
+
+            scene5: {
+                image: "🏆",
+                visualTitle: "操場上的拔河競賽",
+                visualText: "勝利值得歡呼，也值得留一份尊重給努力過的對手。",
+                text: "【情境五：拔河比賽】<br>班際拔河比賽，你們班經過苦戰，終於贏了隔壁班。隔壁班的同學非常失落，甚至有人哭了。<br><br><span class='text-[var(--accent-red)] font-bold'>格言云：「凡事當留餘地，得意不宜再往。」</span><br>意思是：做任何事都要留有退路；得意之時，不可做得太過分。",
+                choices: [
+                    { text: "保持謙虛，主動過去跟對手握手，稱讚他們表現得很棒。", effects: { character: 15 }, target: "scene5_good", quote: "凡事當留餘地，得意不宜再往。" },
+                    { text: "在他們面前大聲歡呼、扮鬼臉，嘲笑他們力氣太小。", effects: { character: -15 }, target: "scene5_bad" }
+                ]
+            },
+            scene5_good: {
+                image: "🤝",
+                visualTitle: "風度比獎盃更閃亮",
+                visualText: "伸出的手，讓勝負成為彼此成長的共同記憶。",
+                text: "勝不驕，敗不餒。你的風度不僅讓對手釋懷，也展現了真正的運動家精神。夫子在旁滿意地點頭。<br><br><span class='text-blue-700'>（謙和圓融，修養 +15）</span>",
+                choices: [{ text: "領取你的專屬行動卡", target: "ending" }]
+            },
+            scene5_bad: {
+                image: "👎",
+                visualTitle: "失去光彩的勝利",
+                visualText: "當歡呼變成嘲笑，原本的喜悅也會漸漸褪色。",
+                text: "你的囂張態度惹怒了對方，差點引發衝突。得理不饒人，反而失去了勝利原本應有的光彩。<br><br><span class='text-red-700'>（驕傲自滿，修養 -15）</span>",
+                choices: [{ text: "領取結業評語", target: "ending" }]
+            },
+
+            ending: {
+                image: "📜",
+                visualTitle: "今日的靜思小結",
+                visualText: "將選擇記在心裡，把一句格言帶回每天的生活。",
+                text: "", // 動態生成
+                choices: [
+                    { text: "再體驗一次書院生活", target: "intro", reset: true }
+                ]
+            }
+        };
+
+        // DOM Elements Cache
+        const DOM = {
+            statsPanel: document.getElementById('stats-panel'),
+            diligence: document.getElementById('stat-diligence'),
+            character: document.getElementById('stat-character'),
+            gratitude: document.getElementById('stat-gratitude'),
+            image: document.getElementById('scene-image'),
+            text: document.getElementById('story-text'),
+            choices: document.getElementById('choices-container')
+        };
+
+        function updateStatsDOM() {
+            DOM.diligence.textContent = stats.diligence;
+            DOM.character.textContent = stats.character;
+            DOM.gratitude.textContent = stats.gratitude;
+        }
+
+        function renderScene(sceneKey) {
+            const scene = storyData[sceneKey];
+            
+            // 重置動畫
+            DOM.text.classList.remove('fade-in');
+            DOM.choices.innerHTML = '';
+            
+            // 觸發重繪以重啟動畫
+            void DOM.text.offsetWidth; 
+            
+            // 顯示/隱藏屬性面板
+            if (scene.showStats || sceneKey !== 'intro') {
+                DOM.statsPanel.classList.remove('hidden');
+                DOM.statsPanel.classList.add('opacity-100');
+            } else {
+                DOM.statsPanel.classList.add('hidden');
+            }
+
+            // 結局特殊處理：生成「班級行動卡」
+            if (sceneKey === 'ending') {
+                let totalScore = stats.diligence + stats.character + stats.gratitude;
+                let title = "";
+                let evaluation = "";
+                
+                // 如果沒有記錄到正面格言，給一個預設的
+                let cardQuote = finalQuote || "一粥一飯，當思來處不易；半絲半縷，恆念物力維艱。";
+
+                if (totalScore >= 30) {
+                    title = "<span class='text-[var(--tzuchi-green)] text-2xl font-bold tracking-widest'>【品學兼優・書香門第】</span>";
+                    evaluation = "夫子欣慰地笑了：「你在面對誘惑與抉擇時，皆能謹記古人教誨。不論是勤學、惜物、還是待人接物，都展現了慈濟小學『感恩、尊重、愛』的優良品格！」";
+                    playGoodSound();
+                } else if (totalScore > 0) {
+                    title = "<span class='text-blue-800 text-2xl font-bold tracking-widest'>【中規中矩・尚需實踐】</span>";
+                    evaluation = "夫子點點頭：「你對生活哲理有一定的體會，但在某些時刻仍會受情緒或環境影響。記住，知道道理不難，難在落實於日常之中。」";
+                } else {
+                    title = "<span class='text-red-800 text-2xl font-bold tracking-widest'>【有待加強・反躬自省】</span>";
+                    evaluation = "夫子嘆了口氣：「今日的種種選擇，似乎背離了聖賢的教誨與校園的期許。請檢視自己的行為，明日再來學堂好好修行吧！」";
+                    playBadSound();
+                }
+
+                // 組合行動卡 HTML
+                scene.text = `
+                    <div class="text-center mb-6">${title}</div>
+                    <div class="text-justify mb-6">${evaluation}</div>
+                    
+                    <div class="action-card text-left mt-6 shadow-md fade-in">
+                        <h3 class="text-xl font-bold text-[var(--accent-red)] border-b border-[var(--accent-red)] pb-2 mb-4">📜 我的專屬行動卡</h3>
+                        <p class="font-bold text-lg mb-2">✦ 銘記格言：</p>
+                        <p class="text-[var(--tzuchi-green)] font-bold text-xl mb-4 pl-4 border-l-4 border-[var(--tzuchi-green)]">「${cardQuote}」</p>
+                        <p class="font-bold text-lg mb-2">✦ 本週實踐目標：</p>
+                        <ul class="list-disc list-inside space-y-2 text-gray-800 pl-4">
+                            <li>反思遊戲中的抉擇，在生活中確實做到。</li>
+                            <li>對父母、師長、同學常懷感恩心。</li>
+                        </ul>
+                    </div>
+                `;
+            }
+
+            // 渲染情境插圖與圖說
+            DOM.image.innerHTML = `
+                <span class="scene-emoji" aria-hidden="true">${scene.image}</span>
+                <div class="scene-caption">
+                    <h2>${scene.visualTitle}</h2>
+                    <p>${scene.visualText}</p>
+                </div>
+            `;
+            DOM.text.innerHTML = scene.text;
+            DOM.text.classList.add('fade-in');
+
+            // 渲染按鈕
+            scene.choices.forEach(choice => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn w-full text-left sm:text-center px-6 py-4 rounded font-bold text-lg shadow-sm border border-[#c2a878]';
+                btn.innerHTML = choice.text;
+                
+                btn.onclick = () => {
+                    // 音效與屬性計算
+                    let isGoodChoice = false;
+                    let isBadChoice = false;
+
+                    if (choice.effects) {
+                        if(choice.effects.diligence > 0 || choice.effects.character > 0 || choice.effects.gratitude > 0) isGoodChoice = true;
+                        if(choice.effects.diligence < 0 || choice.effects.character < 0 || choice.effects.gratitude < 0) isBadChoice = true;
+                    }
+
+                    if (choice.sound) choice.sound();
+                    else if (isGoodChoice) playGoodSound();
+                    else if (isBadChoice) playBadSound();
+                    else playClickSound();
+
+                    // 記錄好的選擇對應的格言，作為最後行動卡的內容
+                    if (isGoodChoice && choice.quote) {
+                        finalQuote = choice.quote;
+                    }
+
+                    // 重置遊戲
+                    if (choice.reset) {
+                        stats = { diligence: 0, character: 0, gratitude: 0 };
+                        finalQuote = "";
+                        updateStatsDOM();
+                    }
+
+                    // 增加屬性
+                    if (choice.effects) {
+                        if(choice.effects.diligence) stats.diligence += choice.effects.diligence;
+                        if(choice.effects.character) stats.character += choice.effects.character;
+                        if(choice.effects.gratitude) stats.gratitude += choice.effects.gratitude;
+                        updateStatsDOM();
+                    }
+                    
+                    // 延遲跳轉以配合按鈕動畫與音效
+                    setTimeout(() => renderScene(choice.target), 300);
+                };
+                DOM.choices.appendChild(btn);
+            });
+        }
+
+        // 初始化遊戲
+        window.onload = () => {
+            renderScene('intro');
+        };
+    </script>
+</body>
+</html>
